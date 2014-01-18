@@ -1,0 +1,38 @@
+@font-face { font-family: "Iconic"; src: url(../fonts/iconic.ttf); }
+*[data-icon]:before { content: attr(data-icon); display: inline-block; font-family: "Iconic"; line-height: 1; }
+
+body, input, button { margin: 0; font-family: arial, sans-serif; }
+body { font-size: 13px; min-width: 1100px; }
+input, button { font-size: 16px; }
+a { color: #2518B5; }
+a:active { color: #DE6A4E; }
+
+#head { position: fixed; width: 100%; padding: 25px 20px; background-color: #F1F1F1; border-bottom: 1px solid #E5E5E5; }
+#head input, #head button { border-width: 1px; border-style: solid; border-radius: 2px; }
+#head input { padding: 4px 6px; width: 300px; border-color: #AAA; }
+#head button { margin-left: 8px; padding: 4px 24px; color: white; background-color: #4D90FE; border-color: #3079ED; }
+#head button:hover { background-color: #357ae8; border-color: #2f5bb7; }
+#head button:active { background-color: #4D90FE; border-color: #3079ED; }
+#head div#info { position: fixed; display: none; padding: 8px 10px; top: 26px; left: 550px; width: 100px; background-color: white; width: 388px; outline: 1px solid #DD4B39; color: #DD4B39; font-weight: bold; }
+
+#body { display: table; padding: 90px 20px 10px 20px; min-width: 1000px; min-height: 100%; max-height: 100%; height: 100%; }
+#body #content { display: table-row; }
+#body ol#ranked-list, #body div#lore { display: table-cell; }
+#body ol#ranked-list { margin: 0; padding: 0; min-width: 400px; max-width: 400px; list-style-type: none; }
+#body div#lore { position: fixed; top: 120px; left: 500px min-height: 100%; max-height: 100%; height: 100%; width: 100%; }
+#body div#lore #chart { font: 10px sans-serif; }
+#body div#lore .chord path { fill-opacity: .67; }
+#body div#lore path { stroke: #000; stroke-width: .5px; fill-opacity: .67; cursor: pointer; }
+#body #search-results { margin-bottom: 13px; color: #999; }
+#body ol#ranked-list > li { padding: 10px 0; }
+#body ol#ranked-list > li h3, #body ol#ranked-list > li h4 { font-weight: normal; }
+#body ol#ranked-list > li h3 { font-size: 16px; margin: 0; }
+#body ol#ranked-list > li h4 { font-size: 13px; margin: 1px 0 3px 0; color: #00802A; }
+#body ol#ranked-list > li p { margin: 0; min-height: 32px; color: #444; }
+#body div#lore-snippets { position: fixed; display: none; top: 65px; padding: 8px 10px; left: 10px; background-color: white; /*width: 388px;*/ width: 488px; outline: 1px solid #444; }
+#body div#lore-snippets p { margin: 0; }
+#body div#lore-snippets h4 { font-size: 15px; margin: 0 0 10px 0; padding-bottom: 10px; text-align: center; border-bottom: 1px solid #444; }
+#body div#lore-snippets h5 { font-size: 13px; margin: 0; }
+#body div#lore-snippets h5:not(:first-of-type) { margin-top: 13px; }
+#body div#lore-snippets h4:not(:first-of-type) { margin-top: 13px; padding-top: 10px; border-top: 1px solid #444; }
+#body div#lore-snippets a#close { position: absolute; font-size: 25px; top: -10px; left: 495px; color: #DD4B39; }

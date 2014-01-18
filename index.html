@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Narrex</title>
+    <link href="stylesheets/index.css" type="text/css" rel="stylesheet">
+</head>
+<body>
+    <div id="head">
+        <form method="GET">
+            <input type="text" id="query" name="query" placeholder="enter a concept">
+            <button id="search" data-icon="f"></button>
+        </form>
+        <div id="info"></div>
+    </div>
+    <div id="body">
+        <div id="search-results"><span class="count">0</span> results</div>
+        <div id="content">
+            <ol id="ranked-list"></ol>
+            <div id="lore">&nbsp;</div>
+            <div id="lore-snippets">
+                <a id="close" href="#" data-icon="X"></a>
+                <div class="content">
+                    <h4 class="concept">Lorem ipsum</h4>
+                    <h5 class="aspect">dolor sit amet</h5>
+                    <p class="snippet">
+                        Consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+                    </p>
+                    <h4 class="concept">Lorem ipsum</h4>
+                    <h5 class="aspect">dolor sit amet</h5>
+                    <p class="snippet">
+                        Consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="foot"></div>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+    <script charset="utf-8" src="http://d3js.org/d3.v3.min.js"></script>
+    <script charset="utf-8" src="javascripts/config.js"></script>
+    <script charset="utf-8" src="javascripts/utils.js"></script>
+    <script charset="utf-8" src="javascripts/apis.js"></script>
+    <script charset="utf-8" src="javascripts/science.min.js"></script>
+    <script charset="utf-8" src="javascripts/science.stats.min.js"></script>
+    <script charset="utf-8" src="javascripts/chord.js"></script>
+    <script charset="utf-8" src="javascripts/models.js"></script>
+    <script charset="utf-8" src="javascripts/controllers.js"></script>
+    <script charset="utf-8" src="javascripts/views.js"></script>
+    <script charset="utf-8" type="text/javascript">
+        window.onbeforeunload = function() {
+            return "All your progress will be lost and cannot be recovered!";
+        };
+        
+        $("input#query").focus(function() {
+            $("div#info").hide();
+            $("div#info").text("Search for a concept!")
+            $("div#info").show();
+        });
+        $("input#query").blur(function() { $("div#info").hide(); });
+        $("button#search").click(render_query);
+        $("a#close").click(function(event) {
+            if(event) event.preventDefault();
+            $("div#lore-snippets").hide();
+        });
+        
+        var i = 0
+        
+        function render_query(event) {
+            if(event) event.preventDefault();
+            if(i > 0) LORE.forget_new_links();
+            i++;
+            
+            $("div#lore-snippets").hide();
+            
+            var input_query = $("input#query").val();
+            
+            View["ResultList"].clear();
+            
+            var query = null;
+            if(input_query) {
+                query = input_query;
+            } else {
+                query = $.querystring["query"];
+            }
+            if(query && query != null) {
+                $("input#query").val(query);                // enter query into search field
+
+                var miner = Api.wikipediaminer;
+                $.when(miner.connected()).then(function() {
+                    console.log("connected to wikipedia miner");
+                    
+                    Controller.ResultList.forQuery(query);
+                    
+                    LORE.render(LORE.links, LORE.concepts);
+                });
+            } else {
+                LORE.render(LORE.links, LORE.concepts);
+            }
+        }
+        
+        render_query();
+    </script>
+</body>
+</html>
