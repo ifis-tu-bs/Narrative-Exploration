@@ -74,10 +74,31 @@ Api["wikipediaminer"] = {
 Api["wikipediaservices"] = {
   url: Config.Api.wikipediaservices.url,
   cache: {},
-  service: function(service) {
+  service: function(service, type, data) {
     var url = Api.wikipediaservices.url
       , cache = Api.wikipediaservices.cache;
-    return cachedAjax(url, cache, service);
+    return cachedAjax(url, cache, service, type, data);
+  },
+  POST_service: function(service, data) {
+    var url = Api.wikipediaservices.url;
+    return $.ajax(url+service, { dataType: 'json', type: 'POST', data: data });
+  },
+  log_LORE: function(session, links, concepts) { //console.log("log_LORE")
+    var json = {
+      "session": session,
+      "links": links,
+      "concepts": concepts
+    };
+  //var json_string = JSON.stringify(json);
+    return Api.wikipediaservices.POST_service("log/lore", json);
+  },
+  log_query: function(session, query) { //console.log("log_query")
+    var json = {
+      "session": session,
+      "query": query
+    };
+  //var json_string = JSON.stringify(json);
+    return Api.wikipediaservices.POST_service("log/query", json);
   },
   articles_by_pageids: function(pageids) { //console.log("articles_by_pageids");
     if(!pageids) {
@@ -89,7 +110,7 @@ Api["wikipediaservices"] = {
     var ids = pageids.join("&id="); //console.log("article/list?id="+ids);
     return service("article/list?id="+ids);
   },
-  summaries: function(pageid) { console.log("Api.wikipediaservices.summaries");
+  summaries: function(pageid) { //console.log("Api.wikipediaservices.summaries");
     if(pageid) { //console.log("if"); console.log(pageid);
       var service = Api.wikipediaservices.service;
 
@@ -130,10 +151,12 @@ Api["wikipediaservices"] = {
 // * Utility functions *
 // *********************
 
-function cachedAjax(url, cache, service) {
+function cachedAjax(url, cache, service, type, data) {
+  /*if(!type) type = 'GET';
+  if(!data) data = {};*/
   var promise = cache[service];
-  if (!promise) {
-    promise = $.ajax(url+service, { dataType: 'json' });
+  if(!promise) {
+    promise = $.ajax(url+service, { dataType: 'json'/*, type: type, data: data*/ });
     cache[service] = promise;
   }
   return promise;

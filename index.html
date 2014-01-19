@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>Narrex</title>
+    <title>Narrex - Narrative Exploration</title>
     <link href="stylesheets/index.css" type="text/css" rel="stylesheet">
 </head>
 <body>
@@ -12,12 +12,22 @@
             <button id="search" data-icon="f"></button>
         </form>
         <div id="info"></div>
+        <div id="the-session">Session ID:<br /><span id="session-id"></span></div>
     </div>
     <div id="body">
         <div id="search-results"><span class="count">0</span> results</div>
         <div id="content">
             <ol id="ranked-list"></ol>
-            <div id="lore">&nbsp;</div>
+            <div id="lore-functions">
+                <a id="remove-all-new-links" href="#">Click to remove unaccepted (green) links</a>
+            </div>
+            <div id="lore"></div>
+            <div id="history">
+                <h2>Recent Queries</h2>
+                <h3>(click to go back)</h3>
+                <ol id="recent-queries">
+                </ol>
+            </div>
             <div id="lore-snippets">
                 <a id="close" href="#" data-icon="X"></a>
                 <div class="content">
@@ -52,54 +62,44 @@
             return "All your progress will be lost and cannot be recovered!";
         };
         
+        function getRandomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+        
+        var session_id = $.querystring["session_id"];
+        if(!session_id) {
+            session_id = getRandomInt(1000000, 9999999);
+            $.querystring["session_id"] = session_id;
+        }
+        $("#session-id").text(session_id);
+        
+        
         $("input#query").focus(function() {
             $("div#info").hide();
             $("div#info").text("Search for a concept!")
             $("div#info").show();
         });
         $("input#query").blur(function() { $("div#info").hide(); });
-        $("button#search").click(render_query);
+        $("button#search").click(function(event) {
+            $("div#info").hide();
+            $("div#info").text("Please wait until the graph is rendered!")
+            $("div#info").show();
+            
+            Controller["ResultList"].render_query(event);
+        });
         $("a#close").click(function(event) {
             if(event) event.preventDefault();
             $("div#lore-snippets").hide();
         });
         
-        var i = 0
-        
-        function render_query(event) {
+        $("a#remove-all-new-links").click(function(event) {
             if(event) event.preventDefault();
-            if(i > 0) LORE.forget_new_links();
-            i++;
             
-            $("div#lore-snippets").hide();
-            
-            var input_query = $("input#query").val();
-            
-            View["ResultList"].clear();
-            
-            var query = null;
-            if(input_query) {
-                query = input_query;
-            } else {
-                query = $.querystring["query"];
-            }
-            if(query && query != null) {
-                $("input#query").val(query);                // enter query into search field
-
-                var miner = Api.wikipediaminer;
-                $.when(miner.connected()).then(function() {
-                    console.log("connected to wikipedia miner");
-                    
-                    Controller.ResultList.forQuery(query);
-                    
-                    LORE.render(LORE.links, LORE.concepts);
-                });
-            } else {
-                LORE.render(LORE.links, LORE.concepts);
-            }
-        }
+            LORE.forget_new_links(); //console.log("LORE.links"); console.log(LORE.links);
+            LORE.render();
+        })
         
-        render_query();
+        Controller["ResultList"].render_query();
     </script>
 </body>
 </html>

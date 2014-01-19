@@ -3,327 +3,228 @@
 // ********************************
 
 LORE = {
-  insert: function(summaries, titles_by_ids) {
-  //console.log("summaries"); console.log(summaries)
-    console.log("titles_by_ids"); console.log(titles_by_ids)
+  insert: function(summaries, titles_by_ids) { //console.log("LORE.insert")
+  //console.log("summaries"); //console.log(summaries)
+  //console.log("titles_by_ids"); //console.log(titles_by_ids)
     
     for(var index = 0; index < summaries.length; index++) {
-      var concept = summaries[index];             //console.log("concept"); console.log(concept);
-      var concept_page_id = concept.pageid;       //console.log("pageid: "+concept_page_id);
-      var concept_title = titles_by_ids[concept.pageid];    console.log("concept_title: "+concept_title);
+      var concept = summaries[index];                     //console.log("\n\n"); console.log("concept"); console.log(concept);
+      var concept_page_id = concept.pageid;               //console.log("pageid: "+concept_page_id);
+      var concept_title = titles_by_ids[concept.pageid];  //console.log("concept_title: "+concept_title);
       
-    //if(!LORE.contains_snippet_for(title)) {
-        var snippet = LORE.choose_summary(concept)[0]; //console.log("snippet: "+snippet.text);
+    //if(!LORE.concepts[concept_title.toLowerCase()]) {
+    //  var chosen_summaries = LORE.choose_summary(concept);
+    //  if(chosen_summaries[0]) {
+    //    var text = chosen_summaries[0].text;
+    //    if(text) LORE.concepts[concept_title.toLowerCase()] = text;
+    //  }
+    //} console.log("LORE.concepts"); console.log(LORE.concepts);
+      
+      // config
+      var min_relatedness = Config["LORE"].min_relatedness;
+      var num_of_summaries = Config["LORE"].num_of_summaries;
+      var min_wikify_relatedness = Config["LORE"].min_wikify_relatedness;
+      
+      // get `num_of_summaries` summaries for each aspect
+      var all_summaries = $.map(concept.aspects, function(aspect) {
+        return $.map(LORE.choose_summary(aspect, num_of_summaries), function(summary) { return summary.text; });
+      });
+      all_summaries = $.map(all_summaries, function(n) { return n; }); //console.log("all_summaries ("+concept_title+")"); console.log(all_summaries); console.log(all_summaries.length);
+      
+      // put all names twice (to have the same ids as all_summaries...)
+      var all_names_twice = $.map(concept.aspects, function(aspect) {
+        var titles = [];
+        for(var i = 0; i < num_of_summaries; i++) {
+          titles.push(aspect.title);
+        }
+        return titles;
+      });
+      all_names_twice = $.map(all_names_twice, function(n) { return n; }); //console.log("all_names_twice ("+concept_title+")"); console.log(all_names_twice); console.log(all_names_twice.length);
+      
+      // wikify all texts
+      var as_texts = $.map(all_summaries, function(summary) { return { text: summary }; }); //console.log("as_texts ("+concept_title+")"); console.log(as_texts); console.log(as_texts.length);
+      $.when(LORE.wikify_all(as_texts, min_wikify_relatedness), Future(concept_page_id), Future(concept_title), Future(all_summaries), Future(all_names_twice))
+      .then(function(wikifieds, concept_page_id, local_concept_title, all_summaries, all_names_twice) { //console.log("wikifieds"); console.log(wikifieds); console.log(wikifieds.length);
+        var with_html_links = $.map(wikifieds, LORE.add_html_links); //console.log("with_html_links ("+local_concept_title+")"); console.log(with_html_links); console.log(with_html_links.length);
         
-        
-        
-        
-        // BEGIN edited
-        
-        // get 2 summaries for each aspect
-        var all_summaries = $.map(concept.aspects, function(aspect) {
-          return $.map(LORE.choose_summary(aspect, 2), function(summary) { return summary.text; });
-        });
-        all_summaries = $.map(all_summaries, function(n) { return n; }); /* flattening array of arrays */ //console.log("all_summaries"); console.log(all_summaries); console.log(all_summaries.length);
-        
-        // put all names twice (to have the same ids as all_summaries...)
-        var all_names_twice = $.map(concept.aspects, function(aspect) {
-          return [aspect.title, aspect.title];
-        });
-        all_names_twice = $.map(all_names_twice, function(n) { return n; }); /* flattening array of arrays */ //console.log("all_names_twice"); console.log(all_names_twice); console.log(all_names_twice.length);
-        
-        // concat all summaries to wikify them together (just one request)
-        var all_summaries_concat = all_summaries.join("$$$$$"); //console.log("all_summaries_concat"); console.log(all_summaries_concat);
-        $.when(Api.wikipediaminer.wikify(all_summaries_concat))
-        .then(function(wikifieds) {
-          // split them again and get the wikified summaries
-          var wikified_doc = wikifieds.wikifiedDocument;
-          if(!wikified_doc) wikified_doc = "";
-          var summaries = wikified_doc.split("$$$$$"); //console.log("summaries"); console.log(summaries); console.log(summaries.length);
-          var with_html_links = $.map(summaries, LORE.add_html_links); //console.log("with_html_links"); console.log(with_html_links); console.log(with_html_links.length);
-          
-          // get all concepts that appear in a summary
-          var concepts_by_summary = $.map(with_html_links, function(summary) {
-            var matches = summary.match(/data-concept\="([^"]+)"/g);
-            if(matches == null) matches = [];
-            var concepts = $.map(matches, function(m) {
-              return m.replace(/data-concept\=/, "").replace(/"/g, "");
-            });
-            return [ concepts ];
-          }); //console.log("concepts_by_summary"); console.log(concepts_by_summary); console.log(concepts_by_summary.length);
-          
-          // flatten titles to concat them and get ids through info
-          var flattened_titles = $.map(concepts_by_summary, function(c) { return c; });
-          
-          // get pageids for the titles
-          $.when(Api.wikipedia.info(flattened_titles))
-          .then(function(response) { //console.log("response"); console.log(response);
-            if(response && response.query && response.query.pages) {
-              
-              var pages = response.query.pages;
-              var pageids = $.map(pages, function(page) {
-                var pageid = page.pageid;
-                if(!pageid) pageid = -1;
-                return pageid;
-              }); //console.log("pageids"); console.log(pageids); console.log(pageids.length);
-
-              // Get only titles that are also in wikipediaservices (and thus have summaries)
-              $.when(Api.wikipediaservices.articles_by_pageids(pageids))
-              .then(function(articles) { //console.log("articles"); console.log(articles);
-                articles = articles.elems;
-                var title_to_pageid = {};
-                $.each(articles, function(ieiece, article) {
-                  var article_title = article.title.toLowerCase();
-                  var pageid = article.id;
-                  title_to_pageid[article_title] = pageid;
-                }); //console.log("title_to_pageid"); console.log(title_to_pageid);
-
-                var pageid_to_title = {};
-                $.each(title_to_pageid, function(a_title, pageid) {
-                  pageid_to_title[pageid] = a_title;
-                }); //console.log("pageid_to_title"); console.log(pageid_to_title);
-
-                // now we have _valid concepts_ that appeared in a summary.
-
-                // Remove all concepts that are not valid
-                var valid_concepts_by_summary = $.map(concepts_by_summary, function(concepts) {
-                  var valid_concepts = $.map(concepts, function(concept) {
-                    var pageid = title_to_pageid[concept.toLowerCase()];
-                    if(pageid) return concept;
-                  });
-                  return [valid_concepts];
-                }); //console.log("valid_concepts_by_summary"); console.log(valid_concepts_by_summary); console.log(valid_concepts_by_summary.length);
-
-                var valid_pageids_by_summary = $.map(valid_concepts_by_summary, function(concepts) {
-                  var valid_pageids = $.map(concepts, function(concept) {
-                    return title_to_pageid[concept.toLowerCase()];
-                  });
-                  return [valid_pageids];
-                }); //console.log("valid_pageids_by_summary"); console.log(valid_pageids_by_summary); console.log(valid_pageids_by_summary.length);
-
-                var all_valid_pageids = $.map(valid_pageids_by_summary, function(pis) { return pis; }); //console.log("all_valid_pageids"); console.log(all_valid_pageids); console.log(all_valid_pageids.length)
-
-                // Now get relatedness measures for the concepts!
-                $.when(Api.wikipediaminer.compare_ids([concept_page_id], all_valid_pageids))
-                .then(function(response) { //console.log("response"); console.log(response);
-                  var comparisons = response.comparisons;
-                  if(!comparisons) comparisons = []; //console.log("comparisons"); console.log(comparisons); console.log(comparisons.length);
-
-                  // sort pageids by relatedness with highest first
-                  var sorted_comparisons = comparisons.sort(function(a, b) {
-                    return b.relatedness - a.relatedness;
-                  }); //console.log("sorted_comparisons"); console.log(sorted_comparisons); console.log(sorted_comparisons.length);
-
-                  var best_pageids = $.map(sorted_comparisons, function(comp) {
-                    if(comp.relatedness >= 0.4) return comp.lowId.toString();
-                  }); //console.log("best_pageids"); console.log(best_pageids); console.log(best_pageids.length);
-
-                  var best_pageids_by_summary = $.map(valid_pageids_by_summary, function(pageids) {
-                    var pids = $.map(pageids, function(pageid) {
-                      if(best_pageids.indexOf(pageid) > -1) return pageid;
-                    });
-                    return [pids];
-                  }); //console.log("best_pageids_by_summary"); console.log(best_pageids_by_summary); console.log(best_pageids_by_summary.length);
-
-                  var best_concepts_by_summary = $.map(best_pageids_by_summary, function(pageids) {
-                    var best = $.map(pageids, function(pageid) {
-                      return pageid_to_title[pageid];
-                    });
-                    return [best];
-                  }); //console.log("best_concepts_by_summary"); console.log(best_concepts_by_summary); console.log(best_concepts_by_summary.length)
-
-                  // Now we have the most fitting concepts for each summary. We can build links!
-
-                  // build links
-                  var links = [];
-                  $.each(best_concepts_by_summary, function(cs_index, concepts) {
-                    if(concepts.length > 0) {
-                      var summary = with_html_links[cs_index];
-                      var aspect = all_names_twice[cs_index];
-                      $.each(concepts, function(c_index, concept) {
-                        var link = {source:concept_title,target:concept,is_new:true,aspect:aspect,text:summary};
-                        links.push(link);
-                      });
-                    }
-                  }); console.log("links"); console.log(links); console.log(links.length);
-
-                  // push links
-                  $.each(links, function(ind, link) {
-                    LORE.links.push(link);
-                  });
-
-                  LORE.render(LORE.links, LORE.concepts);
-
-                })
-              })
-              
-            }
-          })
-        })
-        
-        
-        
-        /*
-        $.each(concept.aspects, function(undex, aspect) {
-          var name = aspect.title;
-          
-          var summaries = LORE.choose_summary(aspect, 2); console.log("summaries");console.log(summaries);
-          
-          $.each(summaries, function(index, summary) {
-          //console.log("summary")
-          //console.log(summary)
-            
-            $.when(Api.wikipediaminer.wikify(summary.text))
-            .then(function(wikified) {
-              var text = wikified.wikifiedDocument;
-              if(!text) {
-                console.error("Summarization failed for '"+summary.text+"'!");
-                text = summary.text;
-              }
-              var with_html_links = LORE.add_html_links(text);
-              
-              console.log("name")
-              console.log(name)
-              
-              var matches = with_html_links.match(/data-concept\="([^"]+)"/g);
-              
-              console.log("with_html_links")
-              console.log(with_html_links)
-              
-              console.log("matches")
-              console.log(matches)
-              
-              if(matches == null) matches = [];
-              
-              var data_concepts = $.map(matches, function(m) {
-                return m.replace(/data-concept\=/, "").replace(/"/g, "");
-              });
-              
-              console.log("data_concepts")
-              console.log(data_concepts)
-              
-              // add links
-              var links = $.map(data_concepts, function(concept) {
-                return {source:title,target:concept,is_new:true,aspect:name,text:with_html_links};
-              });
-              
-              $.each(links, function(ind, link) {
-                LORE.links.push(link);
-              });
-              
-              LORE.render(LORE.links, LORE.concepts);
-              return Future(links);
-            })
-            .then(function(links) {
-            
-            //$.each(links, function(ind, link) {
-                $.when(Api.wikipediaminer.wikify(concept.summaries[0].text))
-                .then(function(wikified) {
-                  var concept = { node: title, snippet: wikified[0] };
-                  LORE.concepts.push(concept);
-                })
-            //});
-            });
-            
+        // get all concepts that appear in a summary
+        var concepts_by_summary = $.map(with_html_links, function(summary) {
+          var matches = summary.match(/data-concept\=["']{1}([^"']+)["']+/g);
+          if(matches == null) matches = [];
+          var concepts = $.map(matches, function(m) {
+            return m.replace(/data-concept\=/, "").replace(/["']+/g, "");
           });
+          return [ concepts ];
+        }); console.log("concepts_by_summary ("+local_concept_title+")"); console.log(concepts_by_summary);// console.log(concepts_by_summary.length);
+        
+        // flatten titles to concat them and get ids through info
+        var flattened_titles = $.map(concepts_by_summary, function(c) { return c; }); //console.log("flattened_titles ("+local_concept_title+")"); console.log(flattened_titles);
+        
+        // get pageids for the titles
+        $.when(Api.wikipedia.info(flattened_titles))
+        .then(function(response) { //console.log("response ("+local_concept_title+")"); console.log(response);
+          if(response && response.query && response.query.pages) {
+            
+            var pages = response.query.pages;
+            var pageids = $.map(pages, function(page) {
+              var pageid = page.pageid;
+              if(!pageid) pageid = -1;
+              return pageid;
+            }); //console.log("pageids"); console.log(pageids); console.log(pageids.length);
+
+            // Get only titles that are also in wikipediaservices (and thus have summaries)
+            $.when(Api.wikipediaservices.articles_by_pageids(pageids))
+            .then(function(articles) { //console.log("articles"); console.log(articles);
+              articles = articles.elems;
+              var title_to_pageid = {};
+              $.each(articles, function(ieiece, article) {
+                var article_title = article.title.toLowerCase();
+                var pageid = article.id;
+                title_to_pageid[article_title] = pageid;
+              }); //console.log("title_to_pageid ("+local_concept_title+")"); console.log(title_to_pageid);
+
+              var pageid_to_title = {};
+              $.each(title_to_pageid, function(a_title, pageid) {
+                pageid_to_title[pageid] = a_title;
+              }); //console.log("pageid_to_title"); console.log(pageid_to_title);
+
+              // now we have _valid concepts_ that appeared in a summary.
+
+              // Remove all concepts that are not valid
+              var valid_concepts_by_summary = $.map(concepts_by_summary, function(concepts) {
+                var valid_concepts = $.map(concepts, function(concept) {
+                  var lower = concept.toLowerCase();
+                  if(lower) {
+                    var pageid = title_to_pageid[lower];
+                    if(pageid) return concept;
+                  }
+                });
+                return [valid_concepts];
+              }); //console.log("valid_concepts_by_summary ("+local_concept_title+")"); console.log(valid_concepts_by_summary); console.log(valid_concepts_by_summary.length);
+
+          
+          // BEGIN not the best but valid
+          //  var valid_pageids_by_summary = $.map(valid_concepts_by_summary, function(concepts) {
+          //    var valid_pageids = $.map(concepts, function(concept) {
+          //      return title_to_pageid[concept.toLowerCase()];
+          //    });
+          //    return [valid_pageids];
+          //  }); console.log("valid_pageids_by_summary ("+local_concept_title+")"); console.log(valid_pageids_by_summary); console.log(valid_pageids_by_summary.length);
+          //
+          //  var all_valid_pageids = $.map(valid_pageids_by_summary, function(pis) { return pis; }); console.log("all_valid_pageids ("+local_concept_title+")"); console.log(all_valid_pageids); console.log(all_valid_pageids.length)
+          //  
+          //  // Now get relatedness measures for the concepts!
+          //  $.when(Api.wikipediaminer.compare_ids([concept_page_id], all_valid_pageids))
+          //  .then(function(response) { //console.log("response"); console.log(response);
+          //    var comparisons = response.comparisons;
+          //    if(!comparisons) comparisons = []; console.log("comparisons ("+local_concept_title+")"); console.log(comparisons); console.log(comparisons.length);
+          //
+          //    // sort pageids by relatedness with highest first
+          //    var sorted_comparisons = comparisons.sort(function(a, b) {
+          //      return b.relatedness - a.relatedness;
+          //    }); console.log("sorted_comparisons ("+local_concept_title+")"); console.log(sorted_comparisons); console.log(sorted_comparisons.length);
+          //
+          //    var best_pageids = $.map(sorted_comparisons, function(comp) {
+          //      if(comp.relatedness >= min_relatedness) return comp.lowId.toString();
+          //    }); console.log("best_pageids ("+local_concept_title+")"); console.log(best_pageids); console.log(best_pageids.length);
+          //
+          //    var best_pageids_by_summary = $.map(valid_pageids_by_summary, function(pageids) {
+          //      var pids = $.map(pageids, function(pageid) {
+          //        if(best_pageids.indexOf(pageid) > -1) return pageid;
+          //        else console.log("not in best_pageids: "+pageid+" => ["+best_pageids.join(",")+"]")
+          //      });
+          //      return [pids];
+          //    }); console.log("best_pageids_by_summary ("+local_concept_title+")"); console.log(best_pageids_by_summary); console.log(best_pageids_by_summary.length);
+          //    
+          //    var best_concepts_by_summary = $.map(best_pageids_by_summary, function(pageids) {
+          //      var best = $.map(pageids, function(pageid) {
+          //        return pageid_to_title[pageid];
+          //      });
+          //      return [best];
+          //    }); console.log("best_concepts_by_summary ("+local_concept_title+")"); console.log(best_concepts_by_summary); console.log(best_concepts_by_summary.length)
+          //
+          //    // Now we have the most fitting concepts for each summary. We can build links!
+          // END not the best but valid
+
+
+              // BEGIN not the best but valid
+              // var links = [];
+              //$.each(best_concepts_by_summary, function(cs_index, concepts) {
+              //  if(concepts.length > 0) {
+              //    var summary = with_html_links[cs_index];
+              //    var aspect = all_names_twice[cs_index];
+              //    $.each(concepts, function(c_index, concept) {
+              //      var link = {source:local_concept_title.toLowerCase(),target:concept.toLowerCase(),is_new:true,aspect:aspect.toLowerCase(),text:summary};
+              //      links.push(link);
+              //    });
+              //  }
+              //}); console.log("links ("+local_concept_title+")"); console.log(links); console.log(links.length);
+              //
+              //// push links
+              //$.each(links, function(ind, link) {
+              //  LORE.links.push(link);
+              //});
+              //
+              //LORE.render();
+              // END not the best but valid
+              
+                // build links
+                var links = [];
+              
+                $.each(valid_concepts_by_summary, function(cs_index, concepts) {
+                  if(concepts.length > 0) {
+                    var summary = with_html_links[cs_index];
+                    var aspect = all_names_twice[cs_index];
+                    $.each(concepts, function(c_index, concept) {
+                      var lower = concept.toLowerCase();
+                      if(lower) {
+                        var link = {source:local_concept_title.toLowerCase(),target:lower,is_new:true,aspect:aspect.toLowerCase(),text:summary};
+                        links.push(link);
+                      }
+                    });
+                  }
+                }); //console.log("links ("+local_concept_title+")"); console.log(links); console.log(links.length);
+
+                // push links
+                $.each(links, function(ind, link) {
+                  LORE.links.push(link);
+                });
+
+              //LORE.render(LORE.links, LORE.concepts);
+                LORE.render();
+          
+          // BEGIN not the best but valid
+          //  });
+          // END not the best but valid
+            });
+            
+          }
         });
-        */
-        
-        
-        // END edited
-        
-        
-        
-        
-      //$.each(concept.aspects, function(undex, aspect) {
-      //  var name = aspect.title;
-      //  
-      //  var summaries = LORE.choose_summary(aspect, 2); console.log("summaries");console.log(summaries);
-      //  
-      //  $.each(summaries, function(index, summary) {
-      //  //console.log("summary")
-      //  //console.log(summary)
-      //    
-      //    $.when(Api.wikipediaminer.wikify(summary.text))
-      //    .then(function(wikified) {
-      //      var text = wikified.wikifiedDocument;
-      //      if(!text) {
-      //        console.error("Summarization failed for '"+summary.text+"'!");
-      //        text = summary.text;
-      //      }
-      //      var with_html_links = LORE.add_html_links(text);
-      //      
-      //      console.log("name")
-      //      console.log(name)
-      //      
-      //      var matches = with_html_links.match(/data-concept\="([^"]+)"/g);
-      //      
-      //      console.log("with_html_links")
-      //      console.log(with_html_links)
-      //      
-      //      console.log("matches")
-      //      console.log(matches)
-      //      
-      //      if(matches == null) matches = [];
-      //      
-      //      var data_concepts = $.map(matches, function(m) {
-      //        return m.replace(/data-concept\=/, "").replace(/"/g, "");
-      //      });
-      //      
-      //      console.log("data_concepts")
-      //      console.log(data_concepts)
-      //      
-      //      // add links
-      //      var links = $.map(data_concepts, function(concept) {
-      //        return {source:title,target:concept,is_new:true,aspect:name,text:with_html_links};
-      //      });
-      //      
-      //      $.each(links, function(ind, link) {
-      //        LORE.links.push(link);
-      //      });
-      //      
-      //      LORE.render(LORE.links, LORE.concepts);
-      //      return Future(links);
-      //    })
-      //    .then(function(links) {
-      //    
-      //    //$.each(links, function(ind, link) {
-      //        $.when(Api.wikipediaminer.wikify(concept.summaries[0].text))
-      //        .then(function(wikified) {
-      //          var concept = { node: title, snippet: wikified[0] };
-      //          LORE.concepts.push(concept);
-      //        })
-      //    //});
-      //    });
-      //    
-      //  });
-      //});
-      }
-  //}
-    
+      });
+    }
   },
-  concepts: [
-    { node: "HTC",            snippet: "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum." }
-  , { node: "Amazon",         snippet: "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum." }
-  , { node: "Apple",          snippet: "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum." }
-  , { node: "Barnes & Noble", snippet: "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum." }
-  , { node: "Foxconn",        snippet: "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum." }
-  , { node: "Google",         snippet: "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum." }
-  , { node: "Inventec",       snippet: "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum." }
-  , { node: "Kodak",          snippet: "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum." }
-  , { node: "LG",             snippet: "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum." }
-  , { node: "Nokia",          snippet: "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum." }
-  , { node: "Motorola",       snippet: "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum." }
-  , { node: "Oracle",         snippet: "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum." }
-  , { node: "ZTE",            snippet: "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum." }
-  , { node: "Samsung",        snippet: "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum." }
-  , { node: "RIM",            snippet: "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum." }
-  , { node: "Qualcomm",       snippet: "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum." }
-  , { node: "Huawei",         snippet: "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum." }
-  , { node: "Ericsson",       snippet: "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum." }
-  , { node: "Sony",           snippet: "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum." }
-  , { node: "Microsoft",      snippet: "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum." }
-  ],
+  concepts: {
+  //  "htc": "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+//, "Amazon": "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+//, "Apple": "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+//, "Barnes & Noble": "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+//, "Foxconn": "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+//, "Google": "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+  //, "inventec": "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+//, "Kodak": "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+//, "LG": "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+//, "Nokia": "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+//, "Motorola": "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+//, "Oracle": "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+//, "ZTE": "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+//, "Samsung": "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+//, "RIM": "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+//, "Qualcomm": "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+//, "Huawei": "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+//, "Ericsson": "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+//, "Sony": "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+  //, "microsoft": "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+  },
   contains_snippet_for: function(node_name) {
     var has_node = false;
     $.each(LORE.concepts, function(index, concept) {
@@ -332,7 +233,7 @@ LORE = {
     return has_node;
   },
   links: [
-    { source: "Microsoft", target: "HTC",            is_new: true,  aspect: "1", text: "M$ -> HTC"   }
+  //  { source: "Microsoft", target: "HTC",            is_new: true,  aspect: "1", text: "M$ -> HTC"   }
 //, { source: "Microsoft", target: "Amazon",         is_new: true,  aspect: "0", text: "M$ -> Ama"   }
 //, { source: "Samsung",   target: "Apple",          is_new: false, aspect: "2", text: "Sam -> App"  }
 //, { source: "Motorola",  target: "Apple",          is_new: false, aspect: "3", text: "Mot -> App"  }
@@ -344,8 +245,8 @@ LORE = {
 //, { source: "Oracle",    target: "Google",         is_new: false, aspect: "9", text: "Ora -> Goo"  }
 //, { source: "Apple",     target: "HTC",            is_new: false, aspect: "q", text: "App -> HTC"  }
 //, { source: "Microsoft", target: "Inventec",       is_new: true,  aspect: "w", text: "M$ -> Inv"   }
-  , { source: "Microsoft", target: "Inventec",       is_new: false, aspect: "c", text: "M$ -> Inv 2" }
-  , { source: "Microsoft", target: "Inventec",       is_new: false, aspect: "t", text: "M$ -> Inv 3" }
+  //, { source: "Microsoft", target: "Inventec",       is_new: false, aspect: "c", text: "M$ -> Inv 2" }
+  //, { source: "Microsoft", target: "Inventec",       is_new: false, aspect: "t", text: "M$ -> Inv 3" }
 //, { source: "Samsung",   target: "Kodak",          is_new: true,  aspect: "e", text: "Sam -> Kod"  }
 //, { source: "LG",        target: "Kodak",          is_new: false, aspect: "r", text: "LG -> Kod"   }
 //, { source: "RIM",       target: "Kodak",          is_new: false, aspect: "t", text: "RIM -> Kod"  }
@@ -367,27 +268,56 @@ LORE = {
     var links = $.grep(LORE.links, function(link) {
       return link.is_new == false;
     });
+    if(!links || links.length == 0) LORE.links = [];
     LORE.links = links;
   },
-  accept_link: function(source, target, aspect) {
-    var the_index, the_text;
+  accept_link: function(source, target, aspect) { console.log("accept_link");
+    var the_source, the_target, the_index, the_text = "";
+  //$.each(LORE.links, function(index, link) {
+  //  if(
+  //    (
+  //      (link.source == source && link.target == target) ||
+  //      (link.source == target && link.target == source)
+  //    ) && link.aspect == aspect
+  //  ) {
+  //    the_source = link.source;
+  //    the_target = link.target;
+  //    the_index = index;
+  //    the_text = link.text;
+  //  }
+  //}); console.log("the_index"); console.log(the_index);
+  //
+  //if(the_index > -1) {
+  //  var link = { source: the_source, target: the_target, is_new: false, aspect: aspect, text: the_text };
+  //  LORE.links[the_index] = link;
+  //  LORE.render(LORE.links, LORE.concepts)
+  //}
+    
     $.each(LORE.links, function(index, link) {
       if(link.source == source && link.target == target && link.aspect == aspect) {
+        the_source = source;
+        the_target = target;
         the_index = index;
         the_text = link.text;
       }
-    });
-
-    if(the_index > -1 && the_text) {
-      LORE.links[the_index] = { source: source, target: target, is_new: false, aspect: aspect, text: the_text }
-      LORE.render(LORE.links, LORE.concepts);
+      if(link.source == target && link.target == source && link.aspect == aspect) {
+        the_source = target;
+        the_target = source;
+        the_index = index;
+        the_text = link.text;
+      }
+    }); //console.log("the_index"); console.log(the_index);
+    
+    if(the_index > -1) {
+      var link = { source: the_source, target: the_target, is_new: false, aspect: aspect, text: the_text };
+      LORE.links[the_index] = link;
     }
     
     LORE.render_all_snippets(source, target);
+    LORE.render();
   },
   get_links_for: function(source, target) {
-    // The direction of the link does not matter!
-    // Thus, both directions are checked.
+    // The direction of the link does not matter! Thus, both directions are checked.
     return $.grep(LORE.links, function(link) {
       return (link.source == source && link.target == target) || (link.source == target && link.target == source);
     });
@@ -403,6 +333,54 @@ LORE = {
     return does_contain;
   },
   render: function(links, concepts) {
+    if(!links) links = LORE.links;
+    if(!concepts) concepts = LORE.concepts;
+    
+    // filters duplicates
+    var possible_duplicates = links;
+    var the_links = [];
+    $.each(possible_duplicates, function(index, link) {
+      // checks for multiple occurrences
+      var occurrences = $.grep(the_links, function(l) {
+        return link.source == l.source && link.target == l.target && link.aspect == l.aspect && link.text == l.text;
+      }); //console.log("occurrences"); console.log(occurrences);
+      // If a link is not in links yet, add it (but prefer "old" links if they exist!)
+      if(occurrences.length < 1) {
+        // prefer old links (cos this link cannot be added again!)
+        if(link.is_new == false) {
+          the_links.push(link);
+        } else {
+          var an_old_link = $.grep(possible_duplicates, function(l) {
+            return link.is_new == false && link.source == l.source && link.target == l.target && link.aspect == l.aspect && link.text == l.text;
+          });
+          if(an_old_link.length > 0) the_links.push(an_old_link[0]);
+          else the_links.push(link);
+        }
+      }
+      
+      //console.log(the_links.length)
+    });
+    
+    links = the_links;
+    LORE.links = links;
+    
+    
+    
+    
+    // DIAL HOME (for the evaluation at crowdflower)
+    var session = $.querystring["session_id"];
+    if(session) {
+      Controller["DialHome"].log_LORE(session, LORE.links, LORE.concepts);
+    }
+    
+    
+    
+    
+    if(links.length == 0) {
+      $("#lore").text("");
+      return;
+    }
+    
     var matrix = []
       , groups = []
       , nodeIndex = {}
@@ -527,8 +505,9 @@ LORE = {
         .attr("d", d3.svg.arc().innerRadius(r0).outerRadius(r1))
         .on("mouseover", function(d) {
           nodeHover(.1)(d);
+          var node_name = groups[d.index];
           $("div#info").hide();
-          $("div#info").text("Click to show link explanation!")
+          $("div#info").html(node_name+":<br />Click to show link explanation!")
           $("div#info").show();
         })
         .on("mouseout", function(d) {
@@ -538,16 +517,112 @@ LORE = {
         .on("click", function(d) {
           $("div#info").hide();
           var node_name = groups[d.index];
-          var node = node_for(concepts, node_name);
+          var snippet = LORE.concepts[node_name.toLowerCase()];
+          if(!snippet) snippet = "";
+          
           var lore_snippets = $("div#lore-snippets");
           var content = lore_snippets.find(".content");
           lore_snippets.hide();
           content.text("");
+      //  content.append("<h4 class='concept'>");
+      //  content.find("h4.concept").text(node_name);
+          
           content.append("<h4 class='concept'>");
-          content.find("h4.concept").text(node_name);
-          content.append("<p class='snippet'>");
-          content.find("p.snippet").text(node.snippet);
+          var h4 = content.find("h4.concept");
+          h4.append("<a href='#' onclick=\"LORE.search_for('"+node_name+"');\">");
+          var a = h4.find("a");
+          a.text(node_name);
+          
+          content.append("<p class='snippet' style='height:20px;background:url(images/ajax-loader.gif) no-repeat;'>");
+          var p = lore_snippets.find(".content p.snippet");
+          
+          content.append("<div id='buttons'>")
+          var buttons = content.find("div#buttons")
+          buttons.append("<a class='search-for' onclick=\"LORE.search_for('"+node_name+"')\" href='#'>")
+          a_search_for = buttons.find("a.search-for");
+          a_search_for.text("Search this concept (all new (green) links will be lost)");
+          
           lore_snippets.show();
+          
+          if(LORE.concepts[node_name.toLowerCase()]) {
+            var text = LORE.concepts[node_name.toLowerCase()];
+            p.css("height", "auto");
+            p.css("background", "none");
+            p.html(text);
+            
+            lore_snippets.show();
+          } else {
+            lore_snippets.show();
+            
+            $.when(Api.wikipedia.info([node_name]))
+            .then(function(info) { //console.log("info"); console.log(info);
+              if(info && info.query && info.query.pages && info.query.pages) {
+                var pages = info.query.pages;
+                var first_page;
+                $.each(pages, function(key, page) {
+                  if(!first_page) first_page = page;
+                }); //console.log("first_page"); console.log(first_page);
+                if(first_page && first_page.pageid) {
+                  var pageid = first_page.pageid;
+                  $.when(Api.wikipediaservices.summaries(pageid))
+                  .then(function(page) { //console.log("page"); console.log(page);
+                    var summary = LORE.choose_summary(page)[0];
+                    
+                    // BACK HERE
+                    
+                    var text = summary.text;
+                    if(text) {
+                      $.when(LORE.wikify_all([{ text: text }]))
+                      .then(function(wikifieds) { //console.log("wikifieds"); console.log(wikifieds);
+                        p.css("height", "auto");
+                        p.css("background", "none");
+                        
+                        var wikified = wikifieds[0];
+                        var as_html = LORE.add_html_links(wikified);
+                        p.html(as_html);
+                        LORE.concepts[node_name] = as_html;
+                      })
+                    } else {
+                      p.css("height", "auto");
+                      p.css("background", "none");
+                      p.text("no snipped available");
+                    }
+                  })
+                } else {
+                  console.error("no page found - cannot render node "+node_name+"!");
+                  p.css("height", "auto");
+                  p.css("background", "none");
+                  p.text("no snipped available");
+                }
+              } else {
+                console.error("pages not found - cannot render node "+node_name+"!");
+                p.css("height", "auto");
+                p.css("background", "none");
+                p.text("no snipped available");
+              }
+            });
+          }
+          
+        //Api.wikipediaservices.summaries(pageid);
+          
+        //content.find("p.snippet").text(snippet);
+          lore_snippets.show();
+          
+          
+        // OLD
+        //var node_name = groups[d.index];
+        //var node = node_for(LORE.concepts, node_name);
+        //var lore_snippets = $("div#lore-snippets");
+        //var content = lore_snippets.find(".content");
+        //lore_snippets.hide();
+        //content.text("");
+        //content.append("<h4 class='concept'>");
+        //content.find("h4.concept").text(node_name);
+        //content.append("<p class='snippet'>");
+        //var snippet = node.snippet;
+        //if(!snippet) snippet = ""
+        //content.find("p.snippet").text(snippet);
+        //lore_snippets.show();
         });
 
     g.append("text")
@@ -610,8 +685,10 @@ LORE = {
         .style("opacity", 1)
         .on("mouseover", function(d) {
           edgeHover(.1)(d);
+          var source = groups[d.source.index];
+          var target = groups[d.target.index];
           $("div#info").hide();
-          $("div#info").text("Click to show link explanation!")
+          $("div#info").html('"'+source+'" to "'+target+'":<br />Click to show link explanation!')
           $("div#info").show();
         })
         .on("mouseout", function(d) {
@@ -664,12 +741,14 @@ LORE = {
       var is_new = false;
       $.each(links, function(index, link) {
         if(link.source == source && link.target == target && link.is_new) is_new = true;
+        if(link.source == target && link.target == source && link.is_new) is_new = true;
       });
       return is_new;
     }
     
     function node_for(concepts, node_name) {
-      var node = null;
+      var node = {};
+      
       $.each(concepts, function(index, concept) {
         if(concept.node == node_name) node = concept;
       });
@@ -678,6 +757,15 @@ LORE = {
   },
   render_all_snippets: function(source, target) {
     var all_snippets = LORE.get_links_for(source, target);
+    
+    var possible_duplicates = all_snippets;
+    all_snippets = [];
+    $.each(possible_duplicates, function(index, link) {
+      var occurrences = $.grep(all_snippets, function(l) {
+        return link.source == l.source && link.target == l.target && link.aspect == l.aspect && link.text == l.text;
+      });
+      if(occurrences.length < 1) all_snippets.push(link);
+    });
     
     var source_snippets = $.grep(all_snippets, function(snippet) { return snippet.source == source; })
     var target_snippets = $.grep(all_snippets, function(snippet) { return snippet.source == target; })
@@ -690,8 +778,14 @@ LORE = {
     $.each(concepts, function(index, concept) {
       if(concept.snippets[0]) {
         content.append("<h4 class='concept'>");
-        content.find("h4.concept:last-of-type").text(concept.source);
-        $.each(concept.snippets, function(index, snippet) {
+      //content.find("h4.concept:last-of-type");//.text(concept.source);
+        
+        var h4 = content.find("h4.concept:last-of-type");//.text(concept.source);
+        h4.append("<a href='#' onclick=\"LORE.search_for('"+concept.source+"');\">");
+        var a = h4.find("a");
+        a.text(concept.source);
+        
+        $.each(concept.snippets, function(index, snippet) { //console.log("concept.snippets"); console.log(concept.snippets);
           content.append("<h5 class='aspect'>")
           var aspect = snippet.aspect;
           var h5text = aspect + (snippet.is_new ? " <span style='color: #DD4B39'>NEW</span> (<a href=\"#\" onclick=\"LORE.accept_link('"+snippet.source+"', '"+snippet.target+"', '"+aspect+"');return false\">keep this connection</a>)" : "");
@@ -776,19 +870,51 @@ LORE = {
       best_text = best_text.replace(char_replace, "");
       
       var summs = { title: title, text: "no snippet available" };
-      if(best_text) summs = { text: best_text.substring(0, max_summary_length) };
+      if(best_text) summs = { text: best_text/*.substring(0, max_summary_length)*/ };
       
       the_summaries.push(summs);
     }
     
     return the_summaries;
   },
-  wikify: function(summaries) { console.log("wikify"); console.log("summaries"); console.log(summaries);
-    var deferreds = $.map(summaries, function(summary) {
-      return Api.wikipediaminer.wikify(summary.text);
+  wikify_all: function(summaries, min_relatedness) { //console.log("wikify_all"); console.log("summaries"); console.log(summaries);
+    if(!min_relatedness) min_relatedness = 0.5;
+    var dfd = new $.Deferred();
+    
+    var texts = $.map(summaries, function(summary) { return summary.text; }); //console.log("texts"); console.log(texts); console.log(texts.length);
+    var deferreds = $.map(texts, function(text) {
+      return Api.wikipediaminer.wikify(text, min_relatedness);
     });
-    return $.when.apply($, deferreds);
+    $.when.apply($, deferreds)
+    .then(function() { // strange: it returns [Object, Array, Array, ..., Array]
+      var wikifieds = arguments; //console.log("arguments"); console.log(arguments); console.log(arguments.length);
+      if(!wikifieds) wikifieds = [];
+      var summs = $.map(wikifieds, function(wikified, index) {
+        var wikifiedDocument = wikified.wikifiedDocument;
+        if(!wikifiedDocument) {
+          if(wikified.length == 3) {
+            var first = wikified[0];
+            if(first) first.wikifiedDocument;
+          }
+          if(!wikifiedDocument) {
+            var text = texts[index];
+            if(text) wikifiedDocument = text;
+          }
+          if(!wikifiedDocument) wikifiedDocument = "";
+        }
+        return wikifiedDocument;
+      }); //console.log("wikified summaries"); console.log("summs"); console.log(summs);
+      dfd.resolve(summs);
+    });
+    
+    return dfd.promise();
   },
+//wikify: function(summaries) { console.log("wikify"); console.log("summaries"); console.log(summaries);
+//  var deferreds = $.map(summaries, function(summary) {
+//    return Api.wikipediaminer.wikify(summary.text);
+//  });
+//  return $.when.apply($, deferreds);
+//},
   add_html_links: function(snippet) {
     var fixed_markup = snippet.replace(/\[\[\[\[/g, "[[");
     var with_links = fixed_markup.replace(/\[\[([^\|]+)\|([^\]]+)\]\]/g, function(m, href, title) {
@@ -796,16 +922,22 @@ LORE = {
       var char_match = /^.*[\|\&;\$%@"<>\(\)\{\}\[\]\+\\=_;]+.*$/g;
       var has_chars = title.match(char_match);
       if(has_chars || words.length > 5) return m;
-      else return '<a data-concept="'+href+'" href="http://en.wikipedia.org/wiki/'+href+'">'+title+"</a>";
+      else return "<a data-concept='"+href+"' href='#' onclick=\"LORE.search_for('"+href+"');\">"+title+"</a>";
+    //else return '<a data-concept="'+href+'" href="http://en.wikipedia.org/wiki/'+href+'">'+title+"</a>";
     });
     with_links = with_links.replace(/\[\[([^\]]+)\]\]/g, function(m, title) {
       var words = title.replace(/^\s+/, "").replace(/\s+$/, "").split(/\s+/);
       var char_match = /^.*[\|\&;\$%@"<>\(\)\{\}\[\]\+\\=_;]+.*$/g;
       var has_chars = title.match(char_match);
       if(has_chars || words.length > 5) return m;
-      else return '<a data-concept="'+title+'" href="http://en.wikipedia.org/wiki/'+title+'">'+title+"</a>";
+      else return "<a data-concept='"+title+"' href='#' onclick=\"LORE.search_for('"+title+"');\">"+title+"</a>";
+    //else return '<a data-concept="'+title+'" href="http://en.wikipedia.org/wiki/'+title+'">'+title+"</a>";
     });
     var less_markup = with_links.replace(/[\[\|\]]/g, "");
     return less_markup;
+  },
+  search_for: function(query) {
+    $("input#query").val(query);
+    Controller["ResultList"].render_query();
   }
 }

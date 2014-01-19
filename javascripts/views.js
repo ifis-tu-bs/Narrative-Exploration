@@ -15,7 +15,7 @@ View["ResultList"] = {
     var li = d3.select("ol#ranked-list").append("li")
       , h3 = li.append("h3");
     li.attr("id", "result-"+pageid);
-    h3.append("a").attr("href", url).text(title);
+    h3.append("a").attr("href", "#").attr("onclick", "LORE.search_for('"+title+"')").text(title);
     li.append("h4").text(url);
     li.append("p").style("background", "url(images/ajax-loader.gif) no-repeat");
   },
@@ -38,8 +38,7 @@ View["ResultList"] = {
     //});
     //var less_markup = with_links.replace(/[\[\|\]]/g, "");
       
-      var less_markup = LORE.add_html_links(snippet);
-      console.log("I added some markup!")
+      var less_markup = LORE.add_html_links(snippet); //console.log("I added some markup!")
       d3.select("li#result-"+pageid+">p").style("background", "none").html(less_markup);
     }
   }
