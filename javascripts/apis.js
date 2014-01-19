@@ -11,7 +11,7 @@ Api["wikipedia"] = {
   service: function(service) {
     var url = Api.wikipedia.url
       , cache = Api.wikipedia.cache;
-    return cachedAjax(url, cache, service+"&format=json");
+    return cachedAjaxP(url, cache, service+"&format=json");
   },
   search: function(query, lim) {
     var service = Api.wikipedia.service
@@ -157,6 +157,17 @@ function cachedAjax(url, cache, service, type, data) {
   var promise = cache[service];
   if(!promise) {
     promise = $.ajax(url+service, { dataType: 'json'/*, type: type, data: data*/ });
+    cache[service] = promise;
+  }
+  return promise;
+}
+
+function cachedAjaxP(url, cache, service, type, data) {
+  /*if(!type) type = 'GET';
+  if(!data) data = {};*/
+  var promise = cache[service];
+  if(!promise) {
+    promise = $.ajax(url+service, { dataType: 'jsonp'/*, type: type, data: data*/ });
     cache[service] = promise;
   }
   return promise;
