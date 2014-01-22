@@ -7,7 +7,7 @@ input, button { font-size: 16px; }
 a { color: #2518B5; }
 a:active { color: #DE6A4E; }
 
-#head { position: fixed; width: 100%; padding: 25px 20px; background-color: #F1F1F1; border-bottom: 1px solid #E5E5E5; }
+#head { z-index: 100; position: fixed; width: 100%; padding: 25px 20px; background-color: #F1F1F1; border-bottom: 1px solid #E5E5E5; }
 #head input, #head button { border-width: 1px; border-style: solid; border-radius: 2px; }
 #head input { padding: 4px 6px; width: 300px; border-color: #AAA; }
 #head button { margin-left: 8px; padding: 4px 24px; color: white; background-color: #4D90FE; border-color: #3079ED; }
@@ -43,3 +43,21 @@ a:active { color: #DE6A4E; }
 #body div#lore-snippets h4:not(:first-of-type) { margin-top: 13px; padding-top: 10px; border-top: 1px solid #444; }
 #body div#lore-snippets div#buttons { font-size: 13px; margin-top: 13px; color: #DD4B39; }
 #body div#lore-snippets a#close { position: absolute; font-size: 25px; top: -10px; left: 495px; color: #DD4B39; }
+
+#body div#lore.wikipedia { position: relative; top: 0; left: 0; margin-left: 50px; width: 650px; min-width: 650px; max-width: 650px; }
+#body div#lore.wikipedia table,
+#body div#lore.wikipedia img,
+#body div#lore.wikipedia ul,
+#body div#lore.wikipedia ol,
+#body div#lore.wikipedia dl,
+#body div#lore.wikipedia video,
+#body div#lore.wikipedia audio,
+#body div#lore.wikipedia source,
+#body div#lore.wikipedia track,
+#body div#lore.wikipedia svg,
+#body div#lore.wikipedia canvas,
+#body div#lore.wikipedia map,
+#body div#lore.wikipedia area,
+#body div#lore.wikipedia math,
+#body div#lore.wikipedia form,
+#body div#lore.wikipedia datalist { display: none; }

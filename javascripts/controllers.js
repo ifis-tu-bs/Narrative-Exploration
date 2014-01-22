@@ -57,7 +57,8 @@ Controller["ResultList"] = {
         
         Controller.ResultList.forQuery(query);
         
-        LORE.render(LORE.links, LORE.concepts);
+        var show_wikipedia_texts = $.querystring["s"];
+        if(!show_wikipedia_texts) LORE.render(LORE.links, LORE.concepts);
       });
     } else {
       LORE.render(LORE.links, LORE.concepts);
@@ -124,7 +125,13 @@ Controller["ResultList"] = {
             });
             
             var summaries_objects = the_arguments; //console.log("summaries"); console.log(summaries);
-            return render_LORE(summaries_objects, titles_by_ids);
+            
+            var show_wikipedia_texts = $.querystring["s"];
+            if(show_wikipedia_texts) {
+              return render_Wikipedia(summaries_objects);
+            } else {
+              return render_LORE(summaries_objects, titles_by_ids);
+            }
           });        
         });
       })
@@ -252,5 +259,73 @@ Controller["ResultList"] = {
       return Future(summaries);
     }
     
+    function render_Wikipedia(summaries_objects) { console.log("render_Wikipedia"); console.log("summaries_objects"); console.log(summaries_objects);
+      if(!summaries_objects || !summaries_objects[0]) { console.error("!summaries_objects")
+        return Future();
+      }
+      
+      var pageid_of_main_concept = summaries_objects[0].pageid; console.log("pageid_of_main_concept"); console.log(pageid_of_main_concept);
+      if(!pageid_of_main_concept) { console.error("!pageid_of_main_concept");
+        return Future();
+      }
+      
+      Controller["Wikipedia"].render_pageid(pageid_of_main_concept);
+      
+      return Future(summaries_objects);
+    }
+    
   }
 };
+
+
+
+// ************************ Deals with rendering wikipedia
+// * Wikipedia Controller * texts.
+// ************************ 
+
+Controller["Wikipedia"] = {
+  render_pageid: function(pageid) { console.log("render_pageid"); console.log("pageid"); console.log(pageid);
+    if(!pageid) { console.error("!pageid");
+      return Future();
+    }
+    
+    $.when(Api["wikipedia"].parse(pageid))
+    .then(function(json) {
+      var parse = json.parse; console.log("parse"); console.log(parse);
+      if(!parse) { console.error("!parse");
+        return Future();
+      }
+      
+      var title = parse.title; console.log("title"); console.log(title);
+      if(!title) { console.error("!title");
+        return Future();
+      }
+      
+      var text = parse.text; console.log("text"); console.log(text);
+      if(!text) { console.error("!text");
+        return Future();
+      }
+      
+      var all = text["*"]; console.log("all"); console.log(all);
+      if(!all) { console.error("!all");
+        return Future();
+      }
+      
+      $("#lore").html("<h1>"+title+"</h1>"+all);
+      
+      $("#lore a").click(function(event) { console.log("click"); console.log("this"); console.log(this);
+        event.preventDefault();
+        var href = $(this).attr("href");
+        if(!href) console.error("!href");
+        else LORE.search_for(href.replace(/\/wiki\//, ""));
+      })
+      
+      return Future(all);
+    })
+    .then(function(json) {
+      console.log("json"); console.log(json);
+    });
+    
+    
+  }
+}

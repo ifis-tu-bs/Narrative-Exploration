@@ -74,30 +74,41 @@
         $("#session-id").text(session_id);
         
         
+        
         $("input#query").focus(function() {
             $("div#info").hide();
             $("div#info").text("Search for a concept!")
             $("div#info").show();
         });
         $("input#query").blur(function() { $("div#info").hide(); });
-        $("button#search").click(function(event) {
-            $("div#info").hide();
-            $("div#info").text("Please wait until the graph is rendered!")
-            $("div#info").show();
-            
-            Controller["ResultList"].render_query(event);
-        });
-        $("a#close").click(function(event) {
-            if(event) event.preventDefault();
-            $("div#lore-snippets").hide();
-        });
         
-        $("a#remove-all-new-links").click(function(event) {
-            if(event) event.preventDefault();
-            
-            LORE.forget_new_links(); //console.log("LORE.links"); console.log(LORE.links);
-            LORE.render();
-        })
+        
+        var show_wikipedia_texts = $.querystring["s"];
+        if(show_wikipedia_texts) {
+            $("button#search").click(function(event) {
+                Controller["ResultList"].render_query(event);
+            });
+            $("a#remove-all-new-links").css("display", "none");
+            $("#lore").addClass("wikipedia");
+        } else { // render LORE
+            $("button#search").click(function(event) {
+                $("div#info").hide();
+                $("div#info").text("Please wait until the graph is rendered!")
+                $("div#info").show();
+
+                Controller["ResultList"].render_query(event);
+            });
+            $("a#close").click(function(event) {
+                if(event) event.preventDefault();
+                $("div#lore-snippets").hide();
+            });
+            $("a#remove-all-new-links").click(function(event) {
+                if(event) event.preventDefault();
+
+                LORE.forget_new_links(); //console.log("LORE.links"); console.log(LORE.links);
+                LORE.render();
+            });
+        }
         
         Controller["ResultList"].render_query();
     </script>

@@ -24,6 +24,10 @@ Api["wikipedia"] = {
     var service = Api.wikipedia.service
       , titles = titls || [];
     return service("?action=query&prop=info&&inprop=url&titles="+titles.join("|"));
+  },
+  parse: function(pageid) {
+    var service = Api.wikipedia.service;
+    return service("?action=parse&pageid="+pageid);
   }
 };
 
