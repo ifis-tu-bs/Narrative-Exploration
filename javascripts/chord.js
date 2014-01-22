@@ -55,7 +55,7 @@ LORE = {
             return m.replace(/data-concept\=/, "").replace(/["']+/g, "");
           });
           return [ concepts ];
-        }); console.log("concepts_by_summary ("+local_concept_title+")"); console.log(concepts_by_summary);// console.log(concepts_by_summary.length);
+        }); //console.log("concepts_by_summary ("+local_concept_title+")"); console.log(concepts_by_summary);// console.log(concepts_by_summary.length);
         
         // flatten titles to concat them and get ids through info
         var flattened_titles = $.map(concepts_by_summary, function(c) { return c; }); //console.log("flattened_titles ("+local_concept_title+")"); console.log(flattened_titles);
@@ -504,7 +504,8 @@ LORE = {
         })
         .attr("d", d3.svg.arc().innerRadius(r0).outerRadius(r1))
         .on("mouseover", function(d) {
-          nodeHover(.1)(d);
+        //nodeHover(.1)(d);
+          nodeHover(.2)(d);
           var node_name = groups[d.index];
           $("div#info").hide();
           $("div#info").html(node_name+":<br />Click to show link explanation!")
@@ -788,7 +789,7 @@ LORE = {
         $.each(concept.snippets, function(index, snippet) { //console.log("concept.snippets"); console.log(concept.snippets);
           content.append("<h5 class='aspect'>")
           var aspect = snippet.aspect;
-          var h5text = aspect + (snippet.is_new ? " <span style='color: #DD4B39'>NEW</span> (<a href=\"#\" onclick=\"LORE.accept_link('"+snippet.source+"', '"+snippet.target+"', '"+aspect+"');return false\">keep this connection</a>)" : "");
+          var h5text = concept.source + " (" + aspect + ")" + (snippet.is_new ? " <span style='color: #DD4B39'>NEW</span> (<a href=\"#\" onclick=\"LORE.accept_link('"+snippet.source+"', '"+snippet.target+"', '"+aspect+"');return false\">keep this connection</a>)" : "");
           content.find("h5.aspect:last-of-type").html(h5text);
           content.append("<p class='snippet'>");
           content.find("p.snippet:last-of-type").html(snippet.text);

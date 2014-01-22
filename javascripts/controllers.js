@@ -93,7 +93,7 @@ Controller["ResultList"] = {
         return $.when.apply($, deferred_summaries)
         .then(function(summary0, summary1, summaryN) { //console.log("arguments"); console.log(arguments); console.log(arguments.length);
           var the_arguments = arguments;
-          //console.log("the_arguments"); console.log(the_arguments); console.log(the_arguments.length);
+          console.log("the_arguments"); console.log(the_arguments); console.log(the_arguments.length);
           
           return $.when(get_concept_summaries(pageids)(the_arguments))
           .then(LORE.wikify_all)
