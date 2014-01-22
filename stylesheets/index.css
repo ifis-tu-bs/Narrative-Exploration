@@ -35,7 +35,7 @@ a:active { color: #DE6A4E; }
 #body ol#ranked-list > li h3 { font-size: 16px; margin: 0; }
 #body ol#ranked-list > li h4 { font-size: 13px; margin: 1px 0 3px 0; color: #00802A; }
 #body ol#ranked-list > li p { margin: 0; min-height: 32px; color: #444; }
-#body div#lore-snippets { position: fixed; display: none; top: 65px; padding: 8px 10px; left: 10px; background-color: white; /*width: 388px;*/ width: 488px; outline: 1px solid #444; }
+#body div#lore-snippets { z-index: 1000; position: fixed; display: none; top: 65px; padding: 8px 10px; left: 10px; background-color: white; /*width: 388px;*/ width: 488px; outline: 1px solid #444; }
 #body div#lore-snippets p { margin: 0; }
 #body div#lore-snippets h4 { font-size: 15px; margin: 0 0 10px 0; padding-bottom: 10px; text-align: center; border-bottom: 1px solid #444; }
 #body div#lore-snippets h5 { font-size: 13px; margin: 0 0 6px 0; }
